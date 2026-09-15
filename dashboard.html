@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous Recon Swarm Simulation</title>
+    
+    <!-- Leaflet CSS for map styling -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        /* General page reset */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar container */
+        #sidebar {
+            width: 320px;
+            background: #161b22;
+            border-right: 1px solid #30363d;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        h2 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #8b949e;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 8px;
+        }
+
+        /* Metric cards for sidebar stats */
+        .metric-card {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .metric-title {
+            font-size: 11px;
+            color: #8b949e;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            font-size: 22px;
+            font-weight: bold;
+            color: #58a6ff;
+            margin-top: 4px;
+        }
+
+        #badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            background: #238636;
+            color: #ffffff;
+        }
+
+        /* Event logging box */
+        #event-log {
+            flex: 1;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            overflow-y: auto;
+            color: #7ee787;
+        }
+
+        .alert-entry {
+            color: #f85149;
+            font-weight: bold;
+        }
+
+        /* Map area */
+        #map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0b0e14;
+        }
+
+        /* Bottom-right legend box */
+        #orb-legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 12px;
+            width: 280px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        }
+
+        #orb-legend header {
+            font-size: 11px;
+            font-family: monospace;
+            color: #8b949e;
+            margin-bottom: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .orb-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .orb-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Panel -->
+    <div id="sidebar">
+        <div>
+            <h2>Swarm Telemetry</h2>
+            <div style="margin-top: 10px;">
+                <span id="badge">SWARM ACTIVE</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-title">Simulation Latency</div>
+            <div class="metric-value" id="latency-val">12 ms</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-title">Active Swarm Orbs</div>
+            <div class="metric-value" id="target-count">3</div>
+        </div>
+
+        <div>
+            <h2>Event Feed</h2>
+            <div id="event-log">Initializing simulation...<br></div>
+        </div>
+    </div>
+
+    <!-- Right Map Display -->
+    <div id="map-container">
+        <div id="map"></div>
+
+        <!-- Legend overlay for active orb status -->
+        <div id="orb-legend">
+            <header>Active Swarm Units</header>
+            <div class="orb-item">
+                <div><span class="orb-dot" style="background: #38d430;"></span>Orb #1 (Alpha Patrol)</div>
+                <span id="status-1" style="color: #38d430;">PATROLLING</span>
+            </div>
+            <div class="orb-item">
+                <div><span class="orb-dot" style="background: #00d2ff;"></span>Orb #2 (Bravo Perimeter)</div>
+                <span id="status-2" style="color: #00d2ff;">PATROLLING</span>
+            </div>
+            <div class="orb-item">
+                <div><span class="orb-dot" style="background: #ffaa00;"></span>Orb #3 (Sentry Ingress)</div>
+                <span id="status-3" style="color: #ffaa00;">PATROLLING</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS library -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Set up the initial Leaflet map view
+        const map = L.map('map').setView([36.9500, -76.2800], 14);
+
+        // Add ESRI dark base map tiles
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri',
+            maxZoom: 16
+        }).addTo(map);
+
+        // Define bounding box for Restricted Zone Alpha
+        const zoneCoords = [
+            [36.9560, -76.2880],
+            [36.9560, -76.2720],
+            [36.9440, -76.2720],
+            [36.9440, -76.2880]
+        ];
+
+        // Draw the red dashed geofence polygon
+        const geofence = L.polygon(zoneCoords, {
+            color: '#f85149',
+            fillColor: '#f85149',
+            fillOpacity: 0.15,
+            dashArray: '6, 8'
+        }).addTo(map).bindTooltip("RESTRICTED ZONE Alpha", { permanent: true, direction: "center" });
+
+        // Helper function: check if orb coordinate is inside polygon zone
+        function isPointInPolygon(point, vs) {
+            let x = point[0], y = point[1];
+            let inside = false;
+            for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                let xi = vs[i][0], yi = vs[i][1];
+                let xj = vs[j][0], yj = vs[j][1];
+                let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        // Helper function to append text logs to sidebar
+        const logEl = document.getElementById('event-log');
+        function logEvent(msg, isAlert = false) {
+            const timeStr = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            if (isAlert) entry.className = 'alert-entry';
+            entry.innerHTML = `[${timeStr}] ${msg}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight; // keep auto-scrolling down
+        }
+
+        // Center position for orbital movement calculations
+        const centerLat = 36.9500;
+        const centerLng = -76.2800;
+
+        // Config object for orb parameters (slowed down speed for smoother movement)
+        const orbs = [
+            { id: 1, name: "Orb #1 (Alpha)", radiusLat: 0.008, radiusLng: 0.012, speed: 0.003, angle: 0, color: "#38d430" },
+            { id: 2, name: "Orb #2 (Bravo)", radiusLat: 0.005, radiusLng: 0.007, speed: -0.004, angle: 2.0, color: "#00d2ff" },
+            { id: 3, name: "Orb #3 (Sentry)", radiusLat: 0.011, radiusLng: 0.005, speed: 0.002, angle: 4.0, color: "#ffaa00" }
+        ];
+
+        const markers = {};
+        const breachStates = { 1: false, 2: false, 3: false };
+
+        // Create Leaflet circle markers for each orb
+        orbs.forEach(orb => {
+            const marker = L.circleMarker([centerLat, centerLng], {
+                radius: 8,
+                color: orb.color,
+                fillColor: orb.color,
+                fillOpacity: 0.9,
+                weight: 2
+            }).addTo(map);
+
+            marker.bindPopup(`<b>${orb.name}</b><br>Status: Active`);
+            markers[orb.id] = marker;
+            logEvent(`Deployed unit: ${orb.name}`);
+        });
+
+        // Animation loop running via requestAnimationFrame
+        function animateSwarm() {
+            orbs.forEach(orb => {
+                // Increment angle to move along ellipse path
+                orb.angle += orb.speed;
+
+                const lat = centerLat + (Math.sin(orb.angle) * orb.radiusLat);
+                const lng = centerLng + (Math.cos(orb.angle) * orb.radiusLng);
+
+                // Update marker position on map
+                markers[orb.id].setLatLng([lat, lng]);
+
+                // Geofence check
+                const breaching = isPointInPolygon([lat, lng], zoneCoords);
+                const statusEl = document.getElementById(`status-${orb.id}`);
+
+                if (breaching && !breachStates[orb.id]) {
+                    breachStates[orb.id] = true;
+                    markers[orb.id].setStyle({ color: '#f85149', fillColor: '#f85149' });
+                    if (statusEl) {
+                        statusEl.innerText = "ZONE BREACH";
+                        statusEl.style.color = "#f85149";
+                    }
+                    logEvent(`⚠️ ZONE BREACH: ${orb.name} inside Alpha Zone!`, true);
+                } else if (!breaching && breachStates[orb.id]) {
+                    breachStates[orb.id] = false;
+                    markers[orb.id].setStyle({ color: orb.color, fillColor: orb.color });
+                    if (statusEl) {
+                        statusEl.innerText = "PATROLLING";
+                        statusEl.style.color = orb.color;
+                    }
+                    logEvent(`Unit exited geofence: ${orb.name}`);
+                }
+            });
+
+            // Loop frame
+            requestAnimationFrame(animateSwarm);
+        }
+
+        // Kick off animation loop
+        animateSwarm();
+    </script>
+</body>
+</html>
