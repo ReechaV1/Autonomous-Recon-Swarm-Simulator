@@ -16,32 +16,6 @@ Back - Python3, FastAPI, Uvicorn
 Frontend - JavaScript (ES6+), Leaflet.js, Esri Dark Canvas Tiles, HTML5/CSS3
 Computer Vision: OpenCV, Ultralytics YOLOv8, Supervision (ByteTrack)
 
-
-┌─────────────────────────────────────────────────────────────┐
-│                      FastAPI Server                         │
-│                       (server.py)                           │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ Serves Static UI
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Leaflet.js Dashboard                      │
-│                      (dashboard.html)                       │
-│                                                             │
-│  ┌───────────────────────┐     ┌─────────────────────────┐  │
-│  │   Telemetry Sidebar   │     │  Interactive Map Canvas │  │
-│  │  - Latency / Unit Stats│     │  - Esri Dark Mode Tiles │  │
-│  │  - Auto-scroll Logs   │     │  - Geofence Polygon     │  │
-│  └───────────────────────┘     └────────────┬────────────┘  │
-│                                             │               │
-│                                 Calculates 60 FPS Orbits    │
-│                                             │               │
-│                                             ▼               │
-│                                ┌─────────────────────────┐  │
-│                                │   Point-in-Polygon      │  │
-│                                │   Breach Detection      │  │
-│                                └─────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-
 Installation: 
 (Bash)
 git clone https://github.com/your-username/autonomous-recon-swarm-sim.git
